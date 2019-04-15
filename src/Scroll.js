@@ -7,7 +7,7 @@ class Scroll extends Component {
     static XLSX = "下拉刷新";
     static SKJZ = '松开加载';
     static GDJZGD = "滚动加载更多";
-    static JZZ = "加载中...";
+    static JZZ = "正在加载数据，请稍后...";
     static PullDownValve = 50;
     static ScrollLoadValve = 50;
 
@@ -54,7 +54,7 @@ class Scroll extends Component {
         }
 
         function touchStart(event) {
-            if (self.refs.scroller.scrollTop <= 0) {
+            if (self.refs.scroller.scrollTop < 0) {
                 isTouchStart = true;
                 startX = supportTouch ? event.changedTouches[0].pageX : event.pageX;
                 startY = supportTouch ? event.changedTouches[0].pageY : event.pageY;
@@ -109,6 +109,7 @@ class Scroll extends Component {
             isTouchStart = false;
             if (self.state.translate < Scroll.PullDownValve) {
                 self.transformScroller(0.3, 0); //设置在下拉刷新状态中
+               
             } else {
                 self.setState({
                     pullRefreshing: true
@@ -122,15 +123,42 @@ class Scroll extends Component {
 
     initScrollLoadMore() {
         var self = this;
-        // 监听滚动加载
+        let timeoutId = null;
         if (this.state.enableScrollLoadMore) {
             self.refs.scroller.addEventListener('scroll', scrolling, false);
         }
 
+        function callback() {
+
+            //获取到按钮离顶部的距离
+            var wrapper = document.querySelector('.scroll-loading');
+            const top = wrapper.getBoundingClientRect().top
+            const windowHeight = window.screen.height
+
+            if (top && top < windowHeight) {
+                // 证明 wrapper 已经被滚动到暴露在页面可视范围之内了
+                self.setState({scrollLoading: true});
+                self.props.onLoadMore();
+            }
+        }
+        
         function scrolling() {
-            console.log(self.refs.scroller.scrollHeight);
-            console.log(self.refs.scroller.scrollTop);
-            console.log(self.refs.scroller.getBoundingClientRect().height);
+            console.log(1);
+            if (self.props.over) return;
+
+            if (self.state.scrollLoading) {
+                return
+            }
+
+            if (timeoutId) {
+                window.clearTimeout(timeoutId)
+            }
+           
+
+            //如果在50ms 以内没有执行scroll 就会执行callBack，如果有下一次滚动，定时器就会被清空
+            timeoutId = setTimeout(callback, 50);
+            /*
+
             if (self.state.scrollLoading) return;
             var scrollerscrollHeight = self.refs.scroller.scrollHeight; // 容器滚动总高度
             var scrollerHeight = self.refs.scroller.getBoundingClientRect().height;// 容器滚动可见高度
@@ -140,6 +168,7 @@ class Scroll extends Component {
                 self.setState({scrollLoading: true});
                 self.props.onLoadMore();
             }
+            */
         }
     }
 
@@ -170,7 +199,6 @@ class Scroll extends Component {
      * 滚动加载完毕
      */
     scrollLoadingDone() {
-        console.log(11)
         this.setState({scrollLoading: false});
         this.refs.dropDownRefreshText.innerHTML = (this.dropDownRefreshText = Scroll.XLJZ);
     }
@@ -195,9 +223,14 @@ class Scroll extends Component {
     }
 
 
+
     render() {
         const { data } = this.state;
-        const { getItem } = this.props;
+        const { getItem, over } = this.props;
+        const LoadingSatatusTxt = () => {
+            return over ? (<div className="scroll-loading">加载完成</div>) : (<div className="scroll-loading">{ Scroll.JZZ }</div>)
+        };
+        
         return (
             <div className="scroller" ref="scroller">
                 <div className="drop-down-refresh-layer">
@@ -213,7 +246,7 @@ class Scroll extends Component {
                             }
                         </ul>
                     </div>
-                    <div className="scroll-loading">加载中...</div>
+                    <LoadingSatatusTxt />
                 </div>
             </div>
         );
