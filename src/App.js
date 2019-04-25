@@ -1,88 +1,110 @@
 import React, { Component } from 'react';
-import './App.css';
-import Scroll from './Scroll';
+import ReactPullLoad,{ STATS } from 'react-pullload';
+import "../node_modules/react-pullload/dist/ReactPullLoad.css";
+import './base.css';
 
 
-class Item extends Component {
-    render() {
-        const { id } = this.props
-        return (
-            <li className="left_four_ul_li" onClick={ (e) => {alert(id)}}>
-                <div className="left_four_ul_li_para">
-                    <h1>{this.props.article.content}</h1>
-                </div>
-            </li>
-        );
-    }
-};
+const loadMoreLimitNum = 2;
 
+const cData = [
+    "http://img1.gtimg.com/15/1580/158031/15803178_1200x1000_0.jpg",
+    "http://img1.gtimg.com/15/1580/158031/15803179_1200x1000_0.jpg",
+    "http://img1.gtimg.com/15/1580/158031/15803181_1200x1000_0.jpg",
+    "http://img1.gtimg.com/15/1580/158031/15803182_1200x1000_0.jpg",
+    "http://img1.gtimg.com/15/1580/158031/15803183_1200x1000_0.jpg",
+    "http://img1.gtimg.com/15/1580/158031/15803184_1200x1000_0.jpg",
+    "http://img1.gtimg.com/15/1580/158031/15803186_1200x1000_0.jpg"
+]
 
-class App extends Component {
-    constructor(props, context) {
-        super(props);
-        this.state = {
-            over: false,
-            page: 1,
-            article: [] //文章列表
-        };
-        this.onLoadMore = this.onLoadMore.bind(this);
-        this.onRefresh = this.onRefresh.bind(this);
+class App extends Component{
+    constructor(){
+        super();
+        this.state ={
+            hasMore: true,
+            data: cData,
+            action: STATS.init,
+            index: loadMoreLimitNum  //loading more test time limit
+        }
     }
 
-    componentDidMount() {//组件被加载之后，默认加载第一页数据
-        this.getData(1);
-    }
+    handleAction = (action) => {
+        console.info(action, this.state.action,action === this.state.action);
+        //new action must do not equel to old action
+        if(
+            action === this.state.action ||
+            (action === STATS.refreshing && this.state.action === STATS.loading) ||
+            (action === STATS.loading && this.state.action === STATS.refreshing)
+        ){
+            console.info("It's same action or on loading or on refreshing ",action, this.state.action, action === this.state.action);
+            return false
+        }
 
-    onRefresh() {//下拉刷新函数
-        this.setState({page: 1});
-        this.getData(this.state.page);
-    }
-    onLoadMore() {//加载更多函数
-        var page = this.state.page + 1;
-        this.setState({page: page});
-        this.getData(page);
-    }
-
-    getItem(article) {
-        let id = Math.ceil((Math.random()* 10000000));
-        return <Item key={ id } id={id}  article={article}/>;
-    }
-    getData(page) {//获取数据的函数
-        var self = this;
-        fetch("http://api.mntools.xyz/articles?offset="+ ((page-1) * 10) +"&pageSize=20").then((response) => {
-            return response.json();
-        }).then(data => {
-            // data就是我们请求的repos
-            if (page === 1) {//如果是第一页，直接覆盖之前的数据
-                self.setState({ article: data.data, over: false })
-                //父组件的setState  改变的自己的状态的同时触发了自组件的componentWillReceiveProps
-                //子组件可以在componentWillReceiveProps里接受新的参数，改变自己的state会自动触发render渲染
-            } else {
-                let over = false;
-                if (!data.data.length || data.data.length < 20) {
-                    over = true;
-                }
-                self.setState({//否则累加数组
-                    article: self.state.article.concat(data.data),
-                    over: over
+        if(action === STATS.refreshing){ //刷新
+            setTimeout(() => {
+                //refreshing complete
+                this.setState({
+                    data: cData,
+                    hasMore: true,
+                    action: STATS.refreshed,
+                    index: loadMoreLimitNum
                 });
-            }
-        });
+            }, 3000);
+        } else if (action === STATS.loading) { //加载更多      
+            this.setState({
+                hasMore: true
+            });
+            setTimeout( () => {
+                if (this.state.index === 0) {
+                    this.setState({
+                        action: STATS.reset,
+                        hasMore: false
+                    });
+                } else {
+                    this.setState({
+                        data: [...this.state.data, cData[0], cData[0]],
+                        action: STATS.reset,
+                        index: this.state.index - 1
+                    });
+                }
+            }, 3000);
+        }
 
+        //DO NOT modify below code
+        this.setState({
+            action: action
+        })
     }
-    render() {
+  
+    render(){
+        const {
+            data,
+            hasMore
+        } = this.state
+
         return (
-            <div className="App">
-                <Scroll
-                    over={this.state.over}
-                    onLoadMore = { this.onLoadMore }
-                    onRefresh = { this.onRefresh }
-                    article = {this.state.article}
-                    getItem={ this.getItem } 
-                />
+            <div>
+                <ReactPullLoad 
+                    className="block"
+                    isBlockContainer={true}
+                    downEnough={150}
+                    action={this.state.action}
+                    handleAction={this.handleAction}
+                    hasMore={hasMore}
+                    distanceBottom={1000}>
+                    <ul className="test-ul">
+                        <button onClick={this.handleAction.bind(this, STATS.refreshing)}>refreshing</button>
+                        <button onClick={this.handleAction.bind(this, STATS.loading)}>loading more</button>
+                        {
+                          data.map( (str, index ) =>{
+                            return <li key={index}><img src={str} alt=""/></li>
+                          })
+                        }
+                    </ul>
+                </ReactPullLoad>
             </div>
-        );
+        )
     }
 }
 
 export default App;
+

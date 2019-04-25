@@ -1,7 +1,7 @@
 import React, { Component, PureComponent } from 'react'
 import { render } from 'react-dom'
 import ReactPullLoad,{STATS} from 'react-pullload'
-// import './pu.less'
+import './pu.css'
 import './base.css'
 
 const defaultStyle ={
